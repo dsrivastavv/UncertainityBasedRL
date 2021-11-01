@@ -5,7 +5,8 @@
 # conda activate rl_project
 # python --version
 
-# download mujoco linux
+# setup mujoco linux
+# https://www.chenshiyu.top/blog/2019/06/19/Tutorial-Installation-and-Configuration-of-MuJoCo-Gym-Baselines/
 # wget https://roboti.us/download/mjpro150_linux.zip
 # mkdir ~/.mujoco
 # cp mjpro150_linux.zip ~/.mujoco
