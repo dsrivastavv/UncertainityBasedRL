@@ -44,5 +44,5 @@
 # pip install mpi4py
 # pip install atari-py
 
-python -m atari_py.import_roms ./content/ROM/
+python -m atari_py.import_roms ./scipy-ml-notebook-master/content/ROM/
 python run.py
