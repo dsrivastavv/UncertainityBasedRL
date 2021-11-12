@@ -39,7 +39,7 @@ class CnnPolicy(object):
             pdparam = unflatten_first_dim(pdparam, sh)
             self.vpred = unflatten_first_dim(vpred, sh)[:, :, 0]
             self.pd = pd = self.ac_pdtype.pdfromflat(pdparam)
-            self.a_samp = pd.sample()
+            self.a_samp = pd.sample() # name: 'pol/ArgMax:0'
             self.entropy = pd.entropy()
             self.nlp_samp = pd.neglogp(self.a_samp)
 

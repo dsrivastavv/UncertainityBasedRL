@@ -7,6 +7,7 @@ import functools
 import os.path as osp
 from functools import partial
 
+import time
 import gym
 import tensorflow as tf
 from baselines import logger
@@ -22,6 +23,7 @@ from utils import random_agent_ob_mean_std
 from wrappers import MontezumaInfoWrapper, make_mario_env, make_robo_pong, make_robo_hockey, \
     make_multi_pong, AddRandomStateToInfo, MaxAndSkipEnv, ProcessFrame84, ExtraTimeLimit
 
+timestr = time.strftime("%Y%m%d-%H%M%S")
 
 def start_experiment(**args):
     make_env = partial(make_env_all_params, add_monitor=True, args=args)
@@ -30,6 +32,8 @@ def start_experiment(**args):
                       num_timesteps=args['num_timesteps'], hps=args,
                       envs_per_process=args['envs_per_process'])
     log, tf_sess = get_experiment_environment(**args)
+    if args['write_model_summary']:
+        writer = tf.summary.FileWriter("./logs/", tf_sess.graph)
     with log, tf_sess:
         logdir = logger.get_dir()
         print("results will be saved to ", logdir)
@@ -107,6 +111,7 @@ class Trainer(object):
 
     def train(self):
         self.agent.start_interaction(self.envs, nlump=self.hps['nlumps'], dynamics=self.dynamics)
+        i = 0
         while True:
             info = self.agent.step()
             if info['update']:
@@ -114,7 +119,10 @@ class Trainer(object):
                 logger.dumpkvs()
             if self.agent.rollout.stats['tcount'] > self.num_timesteps:
                 break
-
+            if i % self.hps['save_ckpt_after_updates'] == 0:
+                saver = tf.train.Saver()
+                saver.save(tf.get_default_session(), f"./logs/UBRL-{timestr}/save_net{i}.ckpt")
+            i+=1
         self.agent.stop_interaction()
 
 
@@ -153,8 +161,7 @@ def get_experiment_environment(**args):
     process_seed = hash_seed(process_seed, max_bytes=4)
     set_global_seeds(process_seed)
     setup_mpi_gpus()
-
-    logger_context = logger.scoped_configure(dir=None,
+    logger_context = logger.scoped_configure(dir=f"./logs/UBRL-{timestr}/",
                                              format_strs=['stdout', 'log',
                                                           'csv'] if MPI.COMM_WORLD.Get_rank() == 0 else ['log'])
     tf_context = setup_tensorflow_session()
@@ -184,7 +191,7 @@ def add_optimization_params(parser):
 def add_rollout_params(parser):
     parser.add_argument('--nsteps_per_seg', type=int, default=128)
     parser.add_argument('--nsegs_per_env', type=int, default=1)
-    parser.add_argument('--envs_per_process', type=int, default=128)
+    parser.add_argument('--envs_per_process', type=int, default=128) # default = 128
     parser.add_argument('--nlumps', type=int, default=1)
 
 
@@ -205,6 +212,8 @@ if __name__ == '__main__':
     parser.add_argument('--layernorm', type=int, default=0)
     parser.add_argument('--feat_learning', type=str, default="none",
                         choices=["none", "idf", "vaesph", "vaenonsph", "pix2pix"])
+    parser.add_argument('--write_model_summary', type=bool, default=False)
+    parser.add_argument('--save_ckpt_after_updates', type=int, default=100)
 
     args = parser.parse_args()
 
