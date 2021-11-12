@@ -51,10 +51,13 @@ class Dynamics(object):
         with tf.variable_scope(self.scope):
             x = flatten_two_dims(self.features)
             x = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
+            x = tf.layers.dropout(x, training=True)
 
             def residual(x):
                 res = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
+                res = tf.layers.dropout(res, training=True)
                 res = tf.layers.dense(add_ac(res), self.hidsize, activation=None)
+                res = tf.layers.dropout(res, training=True)
                 return x + res
 
             for _ in range(4):
