@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -21,6 +21,8 @@ class Dynamics(object):
             self.features = self.get_features(self.obs, reuse=False)
         else:
             self.features = tf.stop_gradient(self.auxiliary_task.features)
+
+        self.drop_rate = drop_rate
 
         self.out_features = self.auxiliary_task.next_features
 
@@ -50,20 +52,21 @@ class Dynamics(object):
 
         with tf.variable_scope(self.scope):
             x = flatten_two_dims(self.features)
-            x = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
-            x = tf.layers.dropout(x, training=True)
+            x = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
+            x = tf.layers.dense(x, self.hidsize, activation=tf.nn.leaky_relu)
 
             def residual(x):
-                res = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
-                res = tf.layers.dropout(res, training=True)
-                res = tf.layers.dense(add_ac(res), self.hidsize, activation=None)
-                res = tf.layers.dropout(res, training=True)
+                res = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
+                res = tf.layers.dense(res, self.hidsize, activation=tf.nn.leaky_relu)
+                res = tf.layers.dropout(add_ac(res), rate=self.drop_rate, training=True)
+                res = tf.layers.dense(res, self.hidsize, activation=None)
                 return x + res
 
             for _ in range(4):
                 x = residual(x)
             n_out_features = self.out_features.get_shape()[-1].value
-            x = tf.layers.dense(add_ac(x), n_out_features, activation=None)
+            x = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
+            x = tf.layers.dense(x, n_out_features, activation=None)
             x = unflatten_first_dim(x, sh)
         return tf.reduce_mean((x - tf.stop_gradient(self.out_features)) ** 2, -1)
 
@@ -79,7 +82,7 @@ class Dynamics(object):
 
 
 class UNet(Dynamics):
-    def __init__(self, auxiliary_task, predict_from_pixels, feat_dim=None, scope='pixel_dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, feat_dim=None, scope='pixel_dynamics'):
         assert isinstance(auxiliary_task, JustPixels)
         assert not predict_from_pixels, "predict from pixels must be False, it's set up to predict from features that are normalized pixels."
         super(UNet, self).__init__(auxiliary_task=auxiliary_task,
