@@ -30,7 +30,9 @@ def start_experiment(**args):
 
     trainer = Trainer(make_env=make_env,
                       num_timesteps=args['num_timesteps'], hps=args,
-                      envs_per_process=args['envs_per_process'])
+                      envs_per_process=args['envs_per_process'],
+                      drop_rate=args['drop_rate'],
+                      num_estimations=args['num_estimations'])
     log, tf_sess = get_experiment_environment(**args)
     if args['write_model_summary']:
         writer = tf.summary.FileWriter("./logs/", tf_sess.graph)
@@ -41,7 +43,7 @@ def start_experiment(**args):
 
 
 class Trainer(object):
-    def __init__(self, make_env, hps, num_timesteps, envs_per_process):
+    def __init__(self, make_env, hps, num_timesteps, envs_per_process, drop_rate, num_estimations):
         self.make_env = make_env
         self.hps = hps
         self.envs_per_process = envs_per_process
@@ -72,6 +74,8 @@ class Trainer(object):
         self.dynamics = Dynamics if hps['feat_learning'] != 'pix2pix' else UNet
         self.dynamics = self.dynamics(auxiliary_task=self.feature_extractor,
                                       predict_from_pixels=hps['dyn_from_pixels'],
+                                      drop_rate=drop_rate,
+                                      num_estimations=num_estimations,
                                       feat_dim=512)
 
         self.agent = PpoOptimizer(
@@ -204,6 +208,8 @@ if __name__ == '__main__':
     add_rollout_params(parser)
 
     parser.add_argument('--exp_name', type=str, default='')
+    parser.add_argument('--drop_rate', type=float, default=0.1)
+    parser.add_argument('--num_estimations', type=int, default=5)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--dyn_from_pixels', type=int, default=0)
     parser.add_argument('--use_news', type=int, default=0)
