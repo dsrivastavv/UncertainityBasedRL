@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, num_estimations, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -23,6 +23,7 @@ class Dynamics(object):
             self.features = tf.stop_gradient(self.auxiliary_task.features)
 
         self.drop_rate = drop_rate
+        self.num_estimations = num_estimations
 
         self.out_features = self.auxiliary_task.next_features
 
@@ -84,21 +85,21 @@ class Dynamics(object):
 	
     def calculate_uncertainty_rew(self, ob, last_ob, acs):
         preds =[]
-        for _ in range(5): #TODO: magic number
+        for _ in range(self.num_estimations):
             n_chunks = 8
             n = ob.shape[0]
             chunk_size = n // n_chunks
             assert n % n_chunks == 0
             sli = lambda i: slice(i * chunk_size, (i + 1) * chunk_size)
             preds.append(np.concatenate([getsess().run(self.pred,
-                                                {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
-                                                self.ac: acs[sli(i)]}) for i in range(n_chunks)], 0))
+                                                       {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
+                                                        self.ac: acs[sli(i)]}) for i in range(n_chunks)], 0))
         preds = np.stack(preds, axis=0)
         return np.mean(np.std(preds, axis=0)**2, -1)
 
 
 class UNet(Dynamics):
-    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, feat_dim=None, scope='pixel_dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, num_estimations, feat_dim=None, scope='pixel_dynamics'):
         assert isinstance(auxiliary_task, JustPixels)
         assert not predict_from_pixels, "predict from pixels must be False, it's set up to predict from features that are normalized pixels."
         super(UNet, self).__init__(auxiliary_task=auxiliary_task,

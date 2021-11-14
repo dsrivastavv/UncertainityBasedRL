@@ -57,13 +57,13 @@ class Rollout(object):
         self.update_info()
 
     def calculate_reward(self):
-        # Don't remove curiosicy reward calculaiton, as this is where forward dynamics loss is computed.
+        # Don't remove curiosity reward calculation, as this is where forward dynamics loss is computed.
         curiosity_int_rew = self.dynamics.calculate_loss(ob=self.buf_obs,
-                                               last_ob=self.buf_obs_last,
-                                               acs=self.buf_acs)
+                                                         last_ob=self.buf_obs_last,
+                                                         acs=self.buf_acs)
         uncertainty_int_rew = self.dynamics.calculate_uncertainty_rew(ob=self.buf_obs,
-                                               last_ob=self.buf_obs_last,
-                                               acs=self.buf_acs)
+                                                                      last_ob=self.buf_obs_last,
+                                                                      acs=self.buf_acs)
         self.buf_rews[:] = self.reward_fun(int_rew=uncertainty_int_rew, ext_rew=self.buf_ext_rews)
 
     def rollout_step(self):
