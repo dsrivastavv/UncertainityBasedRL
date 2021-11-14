@@ -68,6 +68,8 @@ class Dynamics(object):
             x = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
             x = tf.layers.dense(x, n_out_features, activation=None)
             x = unflatten_first_dim(x, sh)
+            with tf.variable_scope(self.scope + "_pred"):
+                self.pred = tf.stop_gradient(x)
         return tf.reduce_mean((x - tf.stop_gradient(self.out_features)) ** 2, -1)
 
     def calculate_loss(self, ob, last_ob, acs):
@@ -79,6 +81,20 @@ class Dynamics(object):
         return np.concatenate([getsess().run(self.loss,
                                              {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
                                               self.ac: acs[sli(i)]}) for i in range(n_chunks)], 0)
+	
+    def calculate_uncertainty_rew(self, ob, last_ob, acs):
+        preds =[]
+        for _ in range(5): #TODO: magic number
+            n_chunks = 8
+            n = ob.shape[0]
+            chunk_size = n // n_chunks
+            assert n % n_chunks == 0
+            sli = lambda i: slice(i * chunk_size, (i + 1) * chunk_size)
+            preds.append(np.concatenate([getsess().run(self.pred,
+                                                {self.obs: ob[sli(i)], self.last_ob: last_ob[sli(i)],
+                                                self.ac: acs[sli(i)]}) for i in range(n_chunks)], 0))
+        preds = np.stack(preds, axis=0)
+        return np.mean(np.std(preds, axis=0)**2, -1)
 
 
 class UNet(Dynamics):
