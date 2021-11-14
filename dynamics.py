@@ -53,21 +53,19 @@ class Dynamics(object):
 
         with tf.variable_scope(self.scope):
             x = flatten_two_dims(self.features)
-            x = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
-            x = tf.layers.dense(x, self.hidsize, activation=tf.nn.leaky_relu)
+            x = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
 
             def residual(x):
-                res = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
-                res = tf.layers.dense(res, self.hidsize, activation=tf.nn.leaky_relu)
-                res = tf.layers.dropout(add_ac(res), rate=self.drop_rate, training=True)
-                res = tf.layers.dense(res, self.hidsize, activation=None)
+                res = tf.layers.dense(add_ac(x), self.hidsize, activation=tf.nn.leaky_relu)
+                res = tf.layers.dropout(x, rate=self.drop_rate, training=True)
+                res = tf.layers.dense(add_ac(res), self.hidsize, activation=None)
+                res = tf.layers.dropout(res, rate=self.drop_rate, training=True)
                 return x + res
 
             for _ in range(4):
                 x = residual(x)
             n_out_features = self.out_features.get_shape()[-1].value
-            x = tf.layers.dropout(add_ac(x), rate=self.drop_rate, training=True)
-            x = tf.layers.dense(x, n_out_features, activation=None)
+            x = tf.layers.dense(add_ac(x), n_out_features, activation=None)
             x = unflatten_first_dim(x, sh)
             with tf.variable_scope(self.scope + "_pred"):
                 self.pred = tf.stop_gradient(x)
