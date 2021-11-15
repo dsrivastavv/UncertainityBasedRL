@@ -209,6 +209,9 @@ class PpoOptimizer(object):
         info['tps'] = MPI.COMM_WORLD.Get_size() * self.rollout.nsteps * self.nenvs / (tnow - self.t_last_update)
         self.t_last_update = tnow
 
+        # Add reward correlation to info
+        info["correlation_euclidean_epistemic_reward"] = self.rollout.reward_correlation
+
         return info
 
     def step(self):
