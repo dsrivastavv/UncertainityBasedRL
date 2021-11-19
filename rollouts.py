@@ -1,5 +1,4 @@
 from collections import deque, defaultdict
-from scipy import stats
 
 import numpy as np
 from mpi4py import MPI
@@ -9,7 +8,7 @@ from recorder import Recorder
 
 class Rollout(object):
     def __init__(self, ob_space, ac_space, nenvs, nsteps_per_seg, nsegs_per_env, nlumps, envs, policy,
-                 int_rew_coeff, ext_rew_coeff, record_rollouts, dynamics):
+                 int_rew_coeff, ext_rew_coeff, record_rollouts, dynamics, intrinsic_ratio):
         self.nenvs = nenvs
         self.nsteps_per_seg = nsteps_per_seg
         self.nsegs_per_env = nsegs_per_env
@@ -21,6 +20,7 @@ class Rollout(object):
         self.envs = envs
         self.policy = policy
         self.dynamics = dynamics
+        self.intrinsic_ratio = intrinsic_ratio
 
         self.reward_fun = lambda ext_rew, int_rew: ext_rew_coeff * np.clip(ext_rew, -1., 1.) + int_rew_coeff * int_rew
 
@@ -60,15 +60,14 @@ class Rollout(object):
 
     def calculate_reward(self):
         # Don't remove curiosity reward calculation, as this is where forward dynamics loss is computed.
-        curiosity_int_rew = self.dynamics.calculate_loss(ob=self.buf_obs,
+        self.fm_loss_int_rew = self.dynamics.calculate_loss(ob=self.buf_obs,
                                                          last_ob=self.buf_obs_last,
                                                          acs=self.buf_acs)
-        uncertainty_int_rew = self.dynamics.calculate_uncertainty_rew(ob=self.buf_obs,
+        self.uncertainty_int_rew = self.dynamics.calculate_uncertainty_rew(ob=self.buf_obs,
                                                                       last_ob=self.buf_obs_last,
                                                                       acs=self.buf_acs)
-
-        self.reward_correlation = stats.pearsonr(curiosity_int_rew.reshape(-1), uncertainty_int_rew.reshape(-1))[0]        
-        self.buf_rews[:] = self.reward_fun(int_rew=uncertainty_int_rew, ext_rew=self.buf_ext_rews)
+        self.int_total_rew = self.intrinsic_ratio * self.fm_loss_int_rew + (1.0 - self.intrinsic_ratio) * self.uncertainty_int_rew
+        self.buf_rews[:] = self.reward_fun(int_rew=self.int_total_rew, ext_rew=self.buf_ext_rews)
 
     def rollout_step(self):
         t = self.step_count % self.nsteps

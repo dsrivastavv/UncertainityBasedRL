@@ -97,7 +97,8 @@ class Trainer(object):
             normadv=hps['norm_adv'],
             ext_coeff=hps['ext_coeff'],
             int_coeff=hps['int_coeff'],
-            dynamics=self.dynamics
+            dynamics=self.dynamics,
+            intrinsic_ratio=hps['intrinsic_ratio'],
         )
 
         self.agent.to_report['aux'] = tf.reduce_mean(self.feature_extractor.loss)
@@ -209,6 +210,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--exp_name', type=str, default='')
     parser.add_argument('--drop_rate', type=float, default=0.1)
+    parser.add_argument('--intrinsic_ratio', type=float, default=0.0)
     parser.add_argument('--num_estimations', type=int, default=5)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--dyn_from_pixels', type=int, default=0)

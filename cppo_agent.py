@@ -6,6 +6,7 @@ from baselines.common import explained_variance
 from baselines.common.mpi_moments import mpi_moments
 from baselines.common.running_mean_std import RunningMeanStd
 from mpi4py import MPI
+from scipy import stats
 
 from mpi_utils import MpiAdamOptimizer
 from rollouts import Rollout
@@ -22,7 +23,7 @@ class PpoOptimizer(object):
                  ent_coef, gamma, lam, nepochs, lr, cliprange,
                  nminibatches,
                  normrew, normadv, use_news, ext_coeff, int_coeff,
-                 nsteps_per_seg, nsegs_per_env, dynamics):
+                 nsteps_per_seg, nsegs_per_env, dynamics, intrinsic_ratio):
         self.dynamics = dynamics
         with tf.variable_scope(scope):
             self.use_recorder = True
@@ -44,6 +45,7 @@ class PpoOptimizer(object):
             self.use_news = use_news
             self.ext_coeff = ext_coeff
             self.int_coeff = int_coeff
+            self.intrinsic_ratio = intrinsic_ratio
             self.ph_adv = tf.placeholder(tf.float32, [None, None])
             self.ph_ret = tf.placeholder(tf.float32, [None, None])
             self.ph_rews = tf.placeholder(tf.float32, [None, None])
@@ -102,7 +104,8 @@ class PpoOptimizer(object):
                                int_rew_coeff=self.int_coeff,
                                ext_rew_coeff=self.ext_coeff,
                                record_rollouts=self.use_recorder,
-                               dynamics=dynamics)
+                               dynamics=dynamics, 
+                               intrinsic_ratio=self.intrinsic_ratio)
 
         self.buf_advs = np.zeros((nenvs, self.rollout.nsteps), np.float32)
         self.buf_rets = np.zeros((nenvs, self.rollout.nsteps), np.float32)
@@ -210,7 +213,11 @@ class PpoOptimizer(object):
         self.t_last_update = tnow
 
         # Add reward correlation to info
-        info["correlation_euclidean_epistemic_reward"] = self.rollout.reward_correlation
+        info["int_fm_loss_weight"] = self.rollout.intrinsic_ratio
+        info["int_fm_loss_rew"] = self.rollout.fm_loss_int_rew.mean()
+        info["int_uncertainity_rew"] = self.rollout.uncertainty_int_rew.mean()
+        info["int_total_rew"] = self.rollout.int_total_rew.mean()
+        info["int_rew_corr"] = stats.pearsonr(self.rollout.fm_loss_int_rew.reshape(-1), self.rollout.uncertainty_int_rew.reshape(-1))[0]
 
         return info
 
