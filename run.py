@@ -144,6 +144,7 @@ def make_env_all_params(rank, add_monitor, args):
             env = MontezumaInfoWrapper(env)
         env = AddRandomStateToInfo(env)
     elif args["env_kind"] == 'mario':
+        print('Building mario env')
         env = make_mario_env()
     elif args["env_kind"] == "retro_multi":
         env = make_multi_pong()
