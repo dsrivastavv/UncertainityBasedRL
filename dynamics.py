@@ -6,7 +6,7 @@ from utils import small_convnet, flatten_two_dims, unflatten_first_dim, getsess,
 
 
 class Dynamics(object):
-    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, num_estimations, feat_dim=None, scope='dynamics'):
+    def __init__(self, auxiliary_task, predict_from_pixels, drop_rate, n_hidden_layers, num_estimations, feat_dim=None, scope='dynamics'):
         self.scope = scope
         self.auxiliary_task = auxiliary_task
         self.hidsize = self.auxiliary_task.hidsize
@@ -24,6 +24,7 @@ class Dynamics(object):
 
         self.drop_rate = drop_rate
         self.num_estimations = num_estimations
+        self.n_hidden_layers = n_hidden_layers
 
         self.out_features = self.auxiliary_task.next_features
 
@@ -62,7 +63,7 @@ class Dynamics(object):
                 res = tf.layers.dropout(res, rate=self.drop_rate, training=True)
                 return x + res
 
-            for _ in range(4):
+            for _ in range(self.n_hidden_layers):
                 x = residual(x)
             n_out_features = self.out_features.get_shape()[-1].value
             x = tf.layers.dense(add_ac(x), n_out_features, activation=None)
