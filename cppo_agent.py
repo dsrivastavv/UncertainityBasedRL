@@ -218,6 +218,8 @@ class PpoOptimizer(object):
         info["int_uncertainity_rew"] = self.rollout.uncertainty_int_rew.mean()
         info["int_total_rew"] = self.rollout.int_total_rew.mean()
         info["int_rew_corr"] = stats.pearsonr(self.rollout.fm_loss_int_rew.reshape(-1), self.rollout.uncertainty_int_rew.reshape(-1))[0]
+        info["ext_coeff"] = self.ext_coeff
+        info["int_coeff"] = self.int_coeff
 
         return info
 
