@@ -209,6 +209,9 @@ class PpoOptimizer(object):
         info['tps'] = MPI.COMM_WORLD.Get_size() * self.rollout.nsteps * self.nenvs / (tnow - self.t_last_update)
         self.t_last_update = tnow
 
+        info["ext_coeff"] = self.ext_coeff
+        info["int_coeff"] = self.int_coeff
+
         return info
 
     def step(self):
